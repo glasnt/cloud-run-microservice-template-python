@@ -12,13 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import logging
 import signal
 import sys
 from types import FrameType
 
+import google.cloud.logging
 from flask import Flask
 
-from utils.logging import logger
+# Setup google-cloud-logging
+client = google.cloud.logging.Client()
+client.setup_logging()
 
 app = Flask(__name__)
 
@@ -26,20 +31,18 @@ app = Flask(__name__)
 @app.route("/")
 def hello() -> str:
     # Use basic logging with custom fields
-    logger.info(logField="custom-entry", arbitraryField="custom-entry")
+    # https://googleapis.dev/python/logging/latest/UPGRADING.html#full-json-log-support-in-standard-library-integration-316-339-447
+    extra_data = dict(logField="custom-entry", arbitraryField="custom-entry")
+    logging.info(json.dumps(extra_data))
 
     # https://cloud.google.com/run/docs/logging#correlate-logs
-    logger.info("Child logger with trace Id.")
+    logging.info("Child logger with trace Id.")
 
     return "Hello, World!"
 
 
 def shutdown_handler(signal_int: int, frame: FrameType) -> None:
-    logger.info(f"Caught Signal {signal.strsignal(signal_int)}")
-
-    from utils.logging import flush
-
-    flush()
+    logging.info(f"Caught Signal {signal.strsignal(signal_int)}")
 
     # Safely exit program
     sys.exit(0)
